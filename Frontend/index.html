@@ -1,0 +1,403 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Multi-Agent Negotiation Simulator</title>
+<style>
+/* ===== 1. TOKENS & BASE ===== */
+:root{--navy:#0f2a52;--navy2:#16355f;--teal:#0f6b52;--green:#16a34a;--lg:#e3f6ea;--blue:#2563eb;--lb:#dbeafe;--or:#ea7c3c;--lo:#ffe8d6;--pu:#7c5cd6;--lp:#ede9fe;--red:#dc2626;--lr:#fde2e2;--bg:#f6f8fb;--bd:#dfe5ee;--tx:#14213d;--mu:#5b6b85}
+*{box-sizing:border-box}
+body{margin:0;font:14px/1.45 "Segoe UI",Arial,sans-serif;color:var(--tx);background:var(--bg)}
+h1,h2,h3,h4,p{margin:0}h3{font-size:15px}
+button,input,select,textarea{font:inherit;color:inherit}
+a{color:var(--blue);cursor:pointer;text-decoration:none}
+.hide{display:none!important}.mu{color:var(--mu)}.sm{font-size:12px}.b{font-weight:600}.r{text-align:right}
+/* ===== 2. LAYOUT SHELL ===== */
+#top{height:52px;background:var(--navy);color:#fff;display:flex;align-items:center;gap:12px;padding:0 16px;position:sticky;top:0;z-index:20}
+#top .logo{background:var(--teal);border-radius:8px;padding:4px 8px}
+#top .sp{flex:1}
+#burger{display:none;background:none;border:0;color:#fff;font-size:20px}
+.app{display:flex;min-height:calc(100vh - 52px)}
+#side{width:84px;background:var(--navy);display:flex;flex-direction:column;padding:8px 6px;gap:4px}
+#side a{color:#cfd9ec;text-align:center;padding:10px 2px;border-radius:10px;font-size:11px}
+#side a i{display:block;font-style:normal;font-size:18px}
+#side a.on{background:var(--teal);color:#fff}
+#side .sp{flex:1}
+#view{flex:1;min-width:0;padding:18px}
+body.login #top,body.login #side{display:none}body.login #view{padding:0}
+body.wiz #side{display:none}
+.screen{display:none}.screen.on{display:block}
+/* ===== 3. COMPONENTS ===== */
+.card{background:#fff;border:1px solid var(--bd);border-radius:12px;padding:14px;box-shadow:0 1px 3px rgba(15,42,82,.06)}
+.card h3{margin-bottom:10px}
+.g2,.g3,.g4,.g5{display:grid;gap:12px}
+.g2{grid-template-columns:1fr 1fr}.g3{grid-template-columns:repeat(3,1fr)}.g4{grid-template-columns:repeat(4,1fr)}.g5{grid-template-columns:repeat(5,1fr)}
+.btn{border:1px solid var(--bd);background:#fff;border-radius:8px;padding:8px 14px;cursor:pointer;font-weight:600}
+.btn:hover{background:#f0f4f9}.btn.pri{background:var(--teal);color:#fff;border-color:var(--teal)}.btn.pri:hover{background:#0b5a44}
+.btn.navy{background:var(--navy);color:#fff}.btn.red{color:var(--red);border-color:#f3b4b4}
+.pill{display:inline-block;border-radius:999px;padding:2px 10px;font-size:12px;font-weight:600}
+.pb{background:var(--lb);color:#1d4ed8}.po{background:var(--lo);color:#b4540f}.pg{background:var(--lg);color:#0f6b3a}.pp{background:var(--lp);color:#5b3fb5}.pr{background:var(--lr);color:#b91c1c}
+.bar{height:9px;background:#e5ebf3;border-radius:9px;overflow:hidden}.bar i{display:block;height:100%;background:var(--green)}
+.row{display:flex;align-items:center;gap:10px}.row.sb{justify-content:space-between}.wrap{flex-wrap:wrap}
+.inp{width:100%;border:1px solid var(--bd);border-radius:8px;padding:8px 10px;background:#fff}
+.inp:focus,.btn:focus-visible{outline:2px solid var(--blue);outline-offset:1px}
+label.f{display:block;font-size:12px;color:var(--mu);margin:8px 0 3px}
+.err{color:var(--red);font-size:12px;min-height:16px}
+.title{text-align:center;margin:8px 0 4px}.title h1{font-size:28px}.title h1 b{color:var(--teal)}
+.tabs{display:flex;gap:4px;border-bottom:1px solid var(--bd);margin:10px 0 14px;overflow-x:auto}
+.tabs a{padding:8px 14px;color:var(--mu);border-bottom:3px solid transparent;font-weight:600;white-space:nowrap}
+.tabs a.on{color:var(--teal);border-color:var(--teal);background:var(--lg);border-radius:8px 8px 0 0}
+.sw{width:38px;height:22px;border-radius:22px;background:#cbd5e3;position:relative;cursor:pointer;display:inline-block;vertical-align:middle;border:0}
+.sw:after{content:"";position:absolute;top:3px;left:3px;width:16px;height:16px;border-radius:50%;background:#fff;transition:.15s}
+.sw.on{background:var(--green)}.sw.on:after{left:19px}
+.tblw{overflow-x:auto}table{width:100%;border-collapse:collapse;font-size:13px}
+th{background:#eef2f8;text-align:left;padding:8px;font-size:12px}td{padding:8px;border-bottom:1px solid #edf1f6}
+.banner{background:linear-gradient(90deg,#e3f6ea,#f1faf4);border:1px solid #bfe5cc;border-radius:12px;padding:14px;display:flex;gap:18px;align-items:center;flex-wrap:wrap;margin-bottom:6px}
+.banner .m{min-width:110px}.banner .m small{color:var(--mu);display:block}.banner .m b{font-size:19px}
+svg text{font:11px "Segoe UI",Arial}
+/* ===== 4. LOGIN ===== */
+.lg{display:grid;grid-template-columns:1.1fr 1fr;min-height:100vh}
+.lg .L{background:linear-gradient(150deg,#0d2a5c,#1b4a8a 60%,#0f6b6b);color:#fff;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:30px;text-align:center;gap:14px}
+.lg .L h1{font-size:34px}.lg .L h1 span{color:#7ee6d0}
+.lg .R{display:flex;align-items:center;justify-content:center;padding:30px;background:#fff;border-radius:40px 0 0 40px;margin-left:-40px}
+.lg form{width:100%;max-width:380px}
+.feat{display:flex;gap:26px}.feat div{font-size:12px;max-width:90px}.feat i{display:block;font-style:normal;font-size:22px}
+/* ===== 5. WIZARD ===== */
+.steps{display:flex;justify-content:center;gap:34px;margin-bottom:6px;flex-wrap:wrap}
+.steps div{text-align:center;font-size:12px;color:var(--mu)}
+.steps span{display:inline-block;width:26px;height:26px;line-height:24px;border-radius:50%;border:1px solid var(--bd);background:#fff;font-weight:700}
+.steps .on span,.steps .ok span{background:var(--green);color:#fff;border-color:var(--green)}.steps .on{color:var(--tx);font-weight:700}
+.sel{cursor:pointer;border:2px solid var(--bd);position:relative;text-align:center;transition:.12s}
+.sel.on{border-color:var(--green);background:#f0faf4}.sel[data-v=sim].on{border-color:var(--blue);background:#eef5ff}
+.sel .dot{position:absolute;top:10px;right:12px;width:22px;height:22px;border-radius:50%;border:2px solid #aab6c8;background:#fff}
+.sel.on .dot{background:var(--green);border-color:var(--green)}.sel.on .dot:after{content:"✓";color:#fff;font-size:13px;position:absolute;left:3px;top:-1px}
+.ill{font-size:44px;margin:6px 0}
+.agcard{border-radius:12px;border:1px solid var(--bd);overflow:hidden}.agcard .hd{padding:10px 14px;display:flex;gap:10px;align-items:center}
+.agcard .bd{padding:10px 14px}
+/* ===== 6. ARENA ===== */
+.arena{display:grid;grid-template-columns:300px minmax(0,1fr) 300px;gap:12px}
+.chat{height:420px;overflow-y:auto;padding:6px}
+.msg{display:flex;gap:8px;margin:10px 0;max-width:88%}.msg.c{margin-left:auto;flex-direction:row-reverse}
+.msg .bub{padding:9px 12px;border-radius:12px;background:var(--lb)}.msg.c .bub{background:var(--lo)}
+.av{width:32px;height:32px;border-radius:50%;display:flex;align-items:center;justify-content:center;background:var(--lb);flex:none}.av.o{background:var(--lo)}
+.tag{font-size:11px;font-weight:700;border-radius:6px;padding:1px 6px;margin-left:6px;background:#fff;border:1px solid var(--bd)}
+.agree{background:var(--lg);border:1px solid #9bdcb3;border-radius:10px;padding:10px;font-weight:600;color:#0f6b3a}
+.kv{display:flex;justify-content:space-between;padding:5px 6px;border-radius:6px}.kv:nth-child(odd){background:#f4f7fb}
+.tl{border-left:2px solid var(--bd);margin-left:10px;padding-left:12px}.tl div{margin:8px 0}
+.hl{background:#fff3b0}
+.ev{margin:6px 0 6px 60px;padding:6px 10px;border-radius:8px;background:var(--lp);font-size:13px}.ev.s{background:var(--lg)}
+.rnd{background:var(--lb);border-radius:8px;padding:6px 10px;font-weight:700;margin-top:10px;display:flex;justify-content:space-between}
+.rec{border-radius:10px;padding:10px;margin-bottom:8px;cursor:pointer}
+/* ===== 7. RESPONSIVE & PRINT ===== */
+@media(max-width:1100px){.arena{grid-template-columns:1fr}.g5{grid-template-columns:repeat(3,1fr)}.g4{grid-template-columns:1fr 1fr}}
+@media(max-width:760px){#burger{display:block}#side{position:fixed;top:52px;bottom:0;left:-100px;z-index:30;transition:.2s}#side.open{left:0}
+.g2,.g3,.g4,.g5{grid-template-columns:1fr}.lg{grid-template-columns:1fr}.lg .R{margin:0;border-radius:0}.lg .L{padding:20px}#view{padding:10px}}
+@media print{#top,#side,.noprint,.tabs{display:none!important}body{background:#fff}.screen{display:none!important}.screen.on{display:block!important}}
+#toast{position:fixed;bottom:20px;left:50%;transform:translateX(-50%);background:var(--navy);color:#fff;padding:9px 16px;border-radius:8px;z-index:90}
+#modal{position:fixed;inset:0;background:rgba(10,20,40,.5);display:flex;align-items:center;justify-content:center;z-index:80;padding:14px}
+#modal .card{max-width:440px;width:100%}
+</style></head>
+<body class="login">
+<header id="top"><button id="burger" aria-label="Menu" onclick="$('#side').classList.toggle('open')">☰</button>
+<span class="logo">🤝</span><b>Multi-Agent Negotiation Simulator</b><span class="sp"></span>
+<span title="Notifications" style="cursor:pointer" onclick="toast('No new notifications')">🔔</span>
+<a style="color:#fff" onclick="showScreen('profile')"><span class="av" style="display:inline-flex;width:28px;height:28px;color:var(--navy);font-weight:700" id="topAv">A</span> <span id="topName">Alex</span></a></header>
+
+<div class="app">
+<nav id="side">
+<a data-n="mode-selection" onclick="showScreen('mode-selection')"><i>⌂</i>Home</a>
+<a data-n="new" onclick="newNeg()"><i>💬</i>New Negotiation</a>
+<a data-n="history" onclick="showScreen('history')"><i>🕘</i>History</a>
+<a data-n="report" onclick="showScreen('report-overview')"><i>📊</i>Reports</a>
+<a data-n="profile" onclick="showScreen('profile')"><i>👤</i>Profile</a>
+<span class="sp"></span>
+<a onclick="helpModal()"><i>❔</i>Help</a><a onclick="logout()"><i>⎋</i>Logout</a>
+</nav>
+<main id="view">
+
+<!-- SCREEN 1: LOGIN -->
+<section class="screen" id="login"><div class="lg">
+<div class="L"><h1>Multi-Agent<br>Negotiation <span>Simulator</span></h1>
+<p>Practice, simulate, and analyze negotiations with intelligent AI agents.</p>
+<svg width="300" height="150" viewBox="0 0 300 150" aria-hidden="true"><rect x="20" y="10" width="110" height="38" rx="10" fill="#1fb58a"/><text x="75" y="34" fill="#fff" text-anchor="middle" font-size="16">🤝</text><rect x="170" y="10" width="110" height="38" rx="10" fill="#2a8ee0"/><text x="225" y="35" fill="#fff" text-anchor="middle" font-size="16">📊</text>
+<ellipse cx="150" cy="120" rx="110" ry="14" fill="#7aa2e0"/><circle cx="70" cy="85" r="22" fill="#e8eefb"/><rect x="58" y="80" width="24" height="9" rx="4" fill="#0f2a52"/><circle cx="230" cy="85" r="22" fill="#e8eefb"/><rect x="218" y="80" width="24" height="9" rx="4" fill="#0f2a52"/><rect x="95" y="100" width="40" height="22" rx="3" fill="#9db8e8"/><rect x="165" y="100" width="40" height="22" rx="3" fill="#9db8e8"/></svg>
+<div class="feat"><div><i>⚡</i>Realistic Negotiations</div><div><i>🗂</i>Multiple Scenarios</div><div><i>📈</i>Detailed Analysis</div></div></div>
+<div class="R"><form id="loginForm" novalidate>
+<h1 style="text-align:center">Welcome Back</h1><p class="mu" style="text-align:center;margin-bottom:14px">Sign in to continue</p>
+<input class="inp" id="lEmail" type="email" placeholder="✉ Email" value="alex.kumar@example.com" aria-label="Email">
+<div class="err" id="eEmail"></div>
+<div class="row"><input class="inp" id="lPass" type="password" placeholder="🔒 Password" value="demo1234" aria-label="Password"><button type="button" class="btn" onclick="const p=$('#lPass');p.type=p.type=='password'?'text':'password'" aria-label="Show or hide password">👁</button></div>
+<div class="err" id="ePass"></div>
+<div class="row sb"><label><input type="checkbox" id="rem"> Remember me</label><a onclick="modal('Forgot password','<p>Demo only: a reset link would be emailed to you.</p>')">Forgot password?</a></div>
+<button class="btn navy" style="width:100%;margin:14px 0;padding:11px" type="submit">Log In</button>
+<p class="mu sm" style="text-align:center;margin-bottom:10px">or continue with</p>
+<div class="g2"><button type="button" class="btn" onclick="login('Google')">Continue with Google</button><button type="button" class="btn" onclick="login('GitHub')">Continue with GitHub</button></div>
+<p style="text-align:center;margin-top:16px">Don't have an account? <a class="b" onclick="signup()">Sign Up</a></p>
+</form></div></div></section>
+
+<!-- SCREEN 2-4 (rendered by JS) -->
+<section class="screen" id="mode-selection"></section>
+<section class="screen" id="scenario-selection"></section>
+<section class="screen" id="agent-configuration"></section>
+<!-- SCREEN 5 -->
+<section class="screen" id="negotiation-arena"></section>
+<!-- SCREENS 6-9 -->
+<section class="screen" id="report-overview"></section>
+<section class="screen" id="report-analysis"></section>
+<section class="screen" id="report-transcript"></section>
+<section class="screen" id="report-recommendations"></section>
+<!-- SCREENS 10-11 -->
+<section class="screen" id="history"></section>
+<section class="screen" id="profile"></section>
+</main></div>
+<div id="modal" class="hide"></div><div id="toast" class="hide"></div>
+
+<script>
+/* ===== A. HELPERS & STATE ===== */
+const $=s=>document.querySelector(s),$$=s=>[...document.querySelectorAll(s)];
+const money=n=>'$'+n.toLocaleString('en-US');
+const DEF={mode:'sim',scenario:0,lang:'English',voice:false,diff:'Medium',maxR:10,dead:3,loggedIn:false,
+ user:{name:'Alex Kumar',email:'alex.kumar@example.com',phone:'',bio:''},prefs:{lang:'English',voice:false,diff:'Medium'},
+ agents:[{n:'Agent 1',tag:'Employer',role:'Employer / Hiring Manager',goal:'Hire at or below $90,000',con:'Total budget ≤ $90,000',pers:'Collaborative',desc:'Willing to offer a competitive package but focused on staying within the budget.'},
+ {n:'Agent 2',tag:'Candidate',role:'Job Candidate',goal:'Get a salary ≥ $100,000',con:'Minimum acceptable salary: $95,000',pers:'Assertive',desc:'Aims for a higher salary and is willing to negotiate on other benefits.'}]};
+let S;try{S=Object.assign({},DEF,JSON.parse(localStorage.getItem('mans')||'{}'))}catch(e){S=structuredClone(DEF)}
+const save=()=>{try{localStorage.setItem('mans',JSON.stringify(S))}catch(e){}};
+const SCN=['Vendor Pricing Negotiation','Job Offer Negotiation','Project Budget Allocation'];
+const PERS=['Collaborative','Assertive','Aggressive','Analytical','Competitive','Cooperative'];
+const LANGS=['English','Hindi','Bengali','Spanish','French'];
+const modeLabel=()=>S.mode=='sim'?'Simulation Mode (AI vs AI)':'Practice Mode (Human vs AI)';
+function toast(t){const e=$('#toast');e.textContent=t;e.classList.remove('hide');clearTimeout(toast.t);toast.t=setTimeout(()=>e.classList.add('hide'),2200)}
+function modal(title,html,foot){const m=$('#modal');m.innerHTML=`<div class="card"><h3>${title}</h3>${html}<div class="r" style="margin-top:12px">${foot||''}<button class="btn" onclick="closeModal()">Close</button></div></div>`;m.classList.remove('hide')}
+const closeModal=()=>$('#modal').classList.add('hide');
+const sw=(id,on,fn)=>`<button type="button" class="sw ${on?'on':''}" id="${id}" role="switch" aria-checked="${!!on}" onclick="this.classList.toggle('on');this.setAttribute('aria-checked',this.classList.contains('on'));${fn}"></button>`;
+const sel=(id,opts,v,fn)=>`<select class="inp" id="${id}" style="width:auto" onchange="${fn}">${opts.map(o=>`<option ${o==v?'selected':''}>${o}</option>`).join('')}</select>`;
+const bar=(l,v,cls)=>`<div style="margin:8px 0"><div class="row sb sm"><span>${l}</span><b>${v}%</b></div><div class="bar"><i style="width:${v}%"></i></div></div>`;
+function steps(n){return `<div class="steps">${['Choose Mode','Select Scenario','Configure Agents','Negotiation Arena'].map((s,i)=>`<div class="${i+1<n?'ok':i+1==n?'on':''}"><span>${i+1<n?'✓':i+1}</span><br>${s}</div>`).join('')}</div>`}
+
+/* ===== B. MOCK DATA (single source of truth) ===== */
+const R=[{r:1,e:90000,c:100000,k:'Initial positions stated'},{r:2,e:92500,c:97500,k:'Both sides concede'},{r:3,e:95000,c:95000,k:'Agreement reached'}];
+const SC=[ // scripted conversation: r=round, who 0=Employer 1=Candidate
+{r:1,t:'10:00 AM',who:0,tag:'Offer: $90,000',txt:'We can offer a base salary of $90,000 along with standard benefits, including health insurance and 20 days of paid leave.'},
+{r:1,t:'10:01 AM',who:1,tag:'Ask: $100,000',txt:'I appreciate the offer. However, I was expecting a salary of $100,000, given my experience and the current market rate.'},
+{r:2,t:'10:04 AM',who:0,tag:'Offer: $92,500',txt:'Understood. We can increase the salary to $92,500 and also add a performance bonus of up to 10% based on annual reviews.'},
+{r:2,t:'10:05 AM',who:1,tag:'Ask: $97,500',txt:'That’s a step in the right direction. I can move to $97,500 if the bonus and fully covered health insurance are included.'},
+{r:3,t:'10:08 AM',who:0,tag:'Offer: $95,000',txt:'We can confirm a salary of $95,000, with the performance bonus, full health insurance, and 20 days of paid leave. Shall we proceed with this?'},
+{r:3,t:'10:09 AM',who:1,tag:'Accepted',txt:'Yes, that works for me. I’m happy to accept the offer at $95,000 with the agreed benefits.'}];
+const EV={1:['Key Event: Opening positions established with a $10,000 gap.',''],2:['Strategy: Both agents made reciprocal concessions and introduced value (performance bonus).','s'],3:['Outcome: Agreement reached at $95,000 with additional benefits.','']};
+const RT={1:'Opening Positions',2:'Concessions & Value Discussion',3:'Agreement & Closure'};
+const REPLY=['Thanks. Let me think about that. We could move slightly if value is added.','That is closer. Can you confirm the benefits package as well?','Understood, we can settle at $95,000 with the performance bonus.'];
+/* history: 8 rows from the reference design + 16 generated rows (24 total, 18 agreements, 6 breakdowns) */
+const BASE=[['NEG-1024',1,'Simulation',1,'$95,000 + Benefits',3,'$5,000 (5.3%)',97,92,26,'10:24 AM'],['NEG-1023',0,'Practice',1,'$48,000 (Qty: 1,000)',5,'$7,000 (12.7%)',94,89,25,'03:18 PM'],['NEG-1022',2,'Simulation',0,'—',6,'$0 (0%)',58,62,24,'11:02 AM'],['NEG-1021',1,'Practice',1,'$98,000 + Bonus',4,'$2,000 (2.0%)',96,90,22,'04:47 PM'],['NEG-1020',0,'Simulation',1,'$50,000 (Qty: 800)',3,'$5,000 (9.1%)',93,88,21,'09:16 AM'],['NEG-1019',2,'Practice',1,'$500,000 (Revised)',7,'$50,000 (9.1%)',91,87,20,'02:33 PM'],['NEG-1018',1,'Simulation',0,'—',5,'$0 (0%)',60,65,19,'10:05 AM'],['NEG-1017',0,'Practice',1,'$47,500 (Qty: 1,200)',4,'$7,500 (13.6%)',95,91,18,'01:27 PM']];
+const HIST=BASE.map(a=>({id:a[0],sc:a[1],mode:a[2],ok:a[3],fin:a[4],rd:a[5],con:a[6],gs:a[7],score:a[8],d:a[9],tm:a[10]}));
+for(let i=0;i<16;i++){const ok=i%4!=1;HIST.push({id:'NEG-'+(1016-i),sc:i%3,mode:i%2?'Practice':'Simulation',ok:+ok,fin:ok?money(40000+i*3500)+' + Benefits':'—',rd:3+i%5,con:ok?money(2000+i*300)+' ('+(2+i%6)+'.0%)':'$0 (0%)',gs:ok?90+i%7:55+i%8,score:i==3?96:ok?84+i%8:58+i%7,d:17-i,tm:(9+i%8)+':'+(10+i)+(i%2?' PM':' AM')})}
+const SUM={total:24,ag:18,br:6,avg:87,best:96};
+const SCS=['Vendor Pricing','Job Offer Negotiation','Project Budget'];
+
+/* ===== C. CHART HELPERS (inline SVG) ===== */
+function lineChart(series,labels,min,max,w=380,h=190,tags){
+ const L=44,B=24,T=12,pw=w-L-12,ph=h-B-T,x=i=>L+i*pw/(labels.length-1),y=v=>T+ph-(v-min)/(max-min)*ph;let g='';
+ for(let k=0;k<=4;k++){const v=min+(max-min)*k/4;g+=`<line x1="${L}" x2="${w-8}" y1="${y(v)}" y2="${y(v)}" stroke="#e6ebf3"/><text x="${L-6}" y="${y(v)+4}" text-anchor="end" fill="#5b6b85">${v>=1000?(v/1000).toFixed(v%1000?1:0)+'K':v}</text>`}
+ labels.forEach((l,i)=>g+=`<text x="${x(i)}" y="${h-6}" text-anchor="middle" fill="#5b6b85">${l}</text>`);
+ series.forEach(s=>{const p=s.pts.map((v,i)=>x(i)+','+y(v)).join(' ');g+=`<polyline points="${p}" fill="none" stroke="${s.col}" stroke-width="2.4"/>`+s.pts.map((v,i)=>`<circle cx="${x(i)}" cy="${y(v)}" r="4.5" fill="#fff" stroke="${s.col}" stroke-width="2"><title>${s.name||''} ${labels[i]}: ${tags?money(v):v}</title></circle>`).join('')});
+ return `<svg viewBox="0 0 ${w} ${h}" width="100%" role="img">${g}</svg>`}
+function donut(parts,big,small,sz=150){const r=52,C=2*Math.PI*r;let o=0,s='';
+ parts.forEach(p=>{const l=C*p.v/100;s+=`<circle cx="75" cy="75" r="${r}" fill="none" stroke="${p.c}" stroke-width="22" stroke-dasharray="${l} ${C-l}" stroke-dashoffset="${-o}" transform="rotate(-90 75 75)"><title>${p.n||''} ${p.v}%</title></circle>`;o+=l});
+ return `<svg viewBox="0 0 150 150" width="${sz}" height="${sz}">${s}<text x="75" y="73" text-anchor="middle" font-size="17" font-weight="700" fill="#14213d">${big}</text><text x="75" y="90" text-anchor="middle" fill="#5b6b85">${small||''}</text></svg>`}
+function ring(v,col){return donut([{v:v,c:col},{v:100-v,c:'#e5ebf3'}],v+'%','',100)}
+function bars(vals,labels,cols,h=170){const w=360,m=Math.max(...vals.flat(),1)*1.2;let s='';
+ labels.forEach((l,i)=>{vals[i].forEach((v,j)=>{const bh=v/m*(h-40),x=40+i*105+j*34;s+=`<rect x="${x}" y="${h-24-bh}" width="30" height="${bh}" fill="${cols[j]}" rx="3"><title>${money(v)}</title></rect><text x="${x+15}" y="${h-28-bh}" text-anchor="middle">${money(v)}</text>`});s+=`<text x="${40+i*105+32}" y="${h-8}" text-anchor="middle">${l}</text>`});
+ return `<svg viewBox="0 0 ${w} ${h}" width="100%">${s}<line x1="30" x2="${w}" y1="${h-24}" y2="${h-24}" stroke="#cbd5e3"/></svg>`}
+const E_COL='#2563eb',C_COL='#ea7c3c';
+
+/* ===== D. NAVIGATION ===== */
+const WIZ=['mode-selection','scenario-selection','agent-configuration'];
+const NAVMAP={'mode-selection':'mode-selection','negotiation-arena':'new','history':'history','profile':'profile'};
+const RENDER={'mode-selection':rMode,'scenario-selection':rScenario,'agent-configuration':rAgents,'negotiation-arena':rArena,'report-overview':()=>rReport('overview'),'report-analysis':()=>rReport('analysis'),'report-transcript':()=>rReport('transcript'),'report-recommendations':()=>rReport('recommendations'),'history':rHistory,'profile':()=>rProfile('overview')};
+let cur='login';
+function showScreen(id){
+ if(!S.loggedIn&&id!='login')id='login';
+ if(id!='negotiation-arena')stopSim();
+ $$('.screen').forEach(s=>s.classList.toggle('on',s.id==id));cur=id;
+ document.body.className=id=='login'?'login':WIZ.includes(id)?'wiz':'';
+ $$('#side a[data-n]').forEach(a=>a.classList.toggle('on',a.dataset.n==(id.startsWith('report')?'report':NAVMAP[id])));
+ $('#side').classList.remove('open');if(RENDER[id])RENDER[id]();window.scrollTo(0,0)}
+function newNeg(){showScreen('mode-selection')}
+function logout(){S.loggedIn=false;save();showScreen('login');toast('Logged out')}
+function helpModal(){modal('Help','<p>1. Choose a mode. 2. Pick a scenario. 3. Configure agents. 4. Watch or take part in the negotiation. 5. Review the report. All data is mock data stored in your browser.</p>')}
+function login(via){S.loggedIn=true;save();$('#topName').textContent=S.user.name.split(' ')[0];$('#topAv').textContent=S.user.name[0];showScreen('mode-selection');if(via)toast('Signed in with '+via+' (demo)')}
+$('#loginForm').addEventListener('submit',e=>{e.preventDefault();const em=$('#lEmail').value.trim(),pw=$('#lPass').value;
+ $('#eEmail').textContent=/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(em)?'':'Enter a valid email address.';
+ $('#ePass').textContent=pw.length>=4?'':'Password must be at least 4 characters.';
+ if(!$('#eEmail').textContent&&!$('#ePass').textContent){S.user.email=em;login()}});
+function signup(){modal('Sign Up (demo)','<label class="f">Full name</label><input class="inp" id="suN" value="New User">','<button class="btn pri" onclick="S.user.name=$(\'#suN\').value||\'New User\';closeModal();login()">Create account</button> ')}
+
+/* ===== E. SCREENS 2-4: WIZARD ===== */
+function rMode(){const m=S.mode;
+ $('#mode-selection').innerHTML=steps(1)+`<div class="title"><h1>Choose a <b>Negotiation Mode</b></h1><p class="mu">Select how you’d like to proceed with the negotiation.</p></div>
+ <div class="g2" style="max-width:900px;margin:18px auto"><div class="card sel ${m=='sim'?'on':''}" data-v="sim" tabindex="0" onclick="S.mode='sim';save();rMode()"><span class="dot"></span><div class="ill">🤖💬🤖</div><h2>Simulation Mode</h2><p><span class="pill pb">AI vs AI</span></p><p class="mu" style="margin-top:8px">Watch two AI agents negotiate with each other based on their goals and constraints.</p></div>
+ <div class="card sel ${m=='prac'?'on':''}" data-v="prac" tabindex="0" onclick="S.mode='prac';save();rMode()"><span class="dot"></span><div class="ill">🧑‍💻💬🤖</div><h2>Practice Mode</h2><p><span class="pill pg">Human vs AI</span></p><p class="mu" style="margin-top:8px">Participate in the negotiation yourself and negotiate against an AI agent.</p></div></div>
+ <div class="card row" style="max-width:700px;margin:0 auto;justify-content:space-around;flex-wrap:wrap"><span>🎯 Realistic Scenarios</span><span>📊 Performance Analysis</span><span>🎓 Improve Negotiation Skills</span></div>
+ <p style="text-align:center;margin-top:18px"><button class="btn pri" style="padding:11px 36px" onclick="showScreen('scenario-selection')">Continue →</button></p>`}
+function rScenario(){const D=[['🛒','Negotiate the price, terms, and contract with a vendor for a product or service.','Price, quantity, delivery, discounts'],['💼','Negotiate salary, benefits, and other employment terms with an employer.','Salary, benefits, role, work terms'],['📊','Negotiate the distribution of a limited budget across multiple projects or teams.','Budget, priorities, resources, trade-offs']];
+ $('#scenario-selection').innerHTML=steps(2)+`<div class="title"><h1>Select a <b>Negotiation Scenario</b></h1><p class="mu">Choose a real-world negotiation context to get started.</p></div>
+ <div class="g3" style="margin:16px 0">${D.map((d,i)=>`<div class="card sel ${S.scenario==i?'on':''}" tabindex="0" onclick="S.scenario=${i};save();rScenario()"><span class="dot"></span><div class="ill">${d[0]}</div><h3>${SCN[i]}</h3><p class="mu sm" style="margin:6px 0">${d[1]}</p><hr style="border:0;border-top:1px solid var(--bd)"><p class="sm" style="text-align:left">🎯 <b>Key Topics</b><br>${d[2]}</p></div>`).join('')}</div>
+ <div class="card row wrap" style="justify-content:space-around"><b>⚙ Additional Options</b><span>Language ${sel('oLang',LANGS,S.lang,"S.lang=this.value;save()")}</span><span>🎙 Voice Mode ${sw('oVoice',S.voice,"S.voice=this.classList.contains('on');save()")}</span><span>Difficulty ${sel('oDiff',['Easy','Medium','Hard'],S.diff,"S.diff=this.value;save()")}</span></div>
+ <p style="text-align:center;margin-top:16px"><button class="btn" onclick="showScreen('mode-selection')">← Back</button> <button class="btn pri" style="padding:11px 36px" onclick="showScreen('agent-configuration')">Continue →</button></p>`}
+function agCard(a,i){const prac=S.mode=='prac'&&i==1,c=i?'#f1eaff':'#dbeafe';
+ const f=(k,l,ic)=>`<label class="f">${ic} ${l}</label><input class="inp" value="${a[k]}" oninput="S.agents[${i}].${k}=this.value;save()">`;
+ return `<div class="agcard"><div class="hd" style="background:${c}"><span class="av">${i?'🟣':'🤖'}</span><input class="inp" style="width:130px;font-weight:700" value="${a.n}" oninput="S.agents[${i}].n=this.value;save()" aria-label="Agent name"><span class="pill ${i?'pp':'pb'}">${a.tag}</span>${prac?'<span class="pill pg">You (Human)</span>':''}</div><div class="bd">${f('role','Role','👤')}${f('goal','Goal','🎯')}${f('con','Constraint','⚑')}
+ <label class="f">⚖ Personality</label>${sel('p'+i,PERS.concat(['Assertive']).filter((v,j,a)=>a.indexOf(v)==j),a.pers,`S.agents[${i}].pers=this.value;save()`).replace('width:auto','width:100%')}
+ <label class="f">ⓘ Description (Optional)</label><textarea class="inp" rows="2" oninput="S.agents[${i}].desc=this.value;save()">${a.desc}</textarea></div></div>`}
+function rAgents(){const set=[['💼 Scenario',SCN[S.scenario]],['👥 Mode',modeLabel()],['🌐 Language',S.lang],['🎙 Voice Mode',S.voice?'On':'Off'],['📶 Difficulty',S.diff]];
+ $('#agent-configuration').innerHTML=steps(3)+`<div class="title"><h1>Configure <b>Negotiation Agents</b></h1><p class="mu">Define the roles, goals, constraints, and personalities for each participant.${S.mode=='prac'?' In Practice Mode, Agent 2 is you.':''}</p></div>
+ <div style="display:grid;grid-template-columns:230px 1fr;gap:14px;margin-top:14px" class="cfg"><div class="card"><h3>Selected Setup</h3>${set.map(s=>`<p style="margin:10px 0"><span class="sm mu">${s[0]}</span><br><b>${s[1]}</b></p>`).join('')}</div>
+ <div class="card"><div class="row sb"><h3>👥 Agent Configuration</h3><button class="btn" onclick="addAgent()">+ Add Agent</button></div>
+ <div class="g2">${S.agents.map(agCard).join('')}</div>
+ <details style="margin-top:12px" class="card"><summary class="b" style="cursor:pointer">⚙ Advanced Settings</summary><div class="g2"><div><label class="f">Maximum rounds</label><input class="inp" type="number" min="3" max="30" value="${S.maxR}" onchange="S.maxR=+this.value;save()"></div><div><label class="f">Deadlock threshold (rounds without movement)</label><input class="inp" type="number" min="1" max="10" value="${S.dead}" onchange="S.dead=+this.value;save()"></div></div></details></div></div>
+ <p style="text-align:center;margin-top:16px"><button class="btn" onclick="showScreen('scenario-selection')">← Back</button> <button class="btn pri" style="padding:11px 36px" onclick="showScreen('negotiation-arena')">Start Negotiation →</button></p>`;
+ if(innerWidth<760)$('.cfg').style.gridTemplateColumns='1fr'}
+function addAgent(){if(S.agents.length>=3)return toast('Maximum of 3 agents in this demo');S.agents.push({n:'Agent 3',tag:'Mediator',role:'Neutral Mediator',goal:'Help both sides reach agreement',con:'Stay impartial',pers:'Analytical',desc:'Optional third party.'});save();rAgents()}
+
+/* ===== F. SCREEN 5: NEGOTIATION ARENA ===== */
+let live=[],timer=null,paused=false,done=false,pStep=0,ai=0;
+function stopSim(){clearInterval(timer);timer=null}
+function rArena(){stopSim();live=[];done=false;paused=false;pStep=0;ai=0;const prac=S.mode=='prac',A=S.agents;
+ const P=(a,i)=>`<div class="agcard" style="margin-bottom:10px;background:${i?'#fff3e8':'#eef5ff'}"><div class="bd"><b>${a.n} – ${a.tag}</b> <span class="pill ${i?'po':'pb'}">${prac&&i?'You (Human)':'AI Agent'}</span><p class="sm" style="margin-top:6px">👤 <b>Role:</b> ${a.role}<br>🎯 <b>Goal:</b> ${a.goal}<br>⚑ <b>Constraint:</b> ${a.con}<br>⚖ <b>Personality:</b> ${a.pers}</p></div></div>`;
+ $('#negotiation-arena').innerHTML=`<div class="row sb wrap" style="margin-bottom:12px"><div><h2>Negotiation Arena</h2><span class="mu">${SCN[S.scenario]} | ${modeLabel()}</span></div>
+ <div class="row wrap noprint">${sel('aLang',LANGS,S.lang,"S.lang=this.value;save()")}<button class="btn" id="vBtn" onclick="S.voice=!S.voice;save();vUpd()"></button><button class="btn" id="pBtn" onclick="togglePause()">❚❚ Pause</button><button class="btn red" onclick="endNeg()">⊖ End Negotiation</button></div></div>
+ <div class="arena"><div><div class="card"><h3>Participants</h3>${A.slice(0,2).map(P).join('')}<details class="card" open><summary class="b">Scenario Details</summary><p class="sm" style="margin-top:6px">Negotiate the job offer, including salary and other terms, between an employer and a candidate. (Sample data is used for all scenarios.)</p></details></div></div>
+ <div class="card"><div class="row sb"><div class="tabs" style="margin:0;flex:1"><a class="on" id="tC" onclick="aTab(0)">💬 Negotiation Chat</a><a id="tT" onclick="aTab(1)">📄 Transcript</a></div><span class="pill pb" id="rBadge">Round 1 / ${S.maxR}</span></div>
+ <div class="chat" id="chat" style="margin-top:8px"></div><pre class="chat hide" id="trans" style="white-space:pre-wrap;font:12px Consolas,monospace"></pre>
+ <div id="agreeBox"></div>
+ <form class="row" id="msgForm" style="margin-top:10px"><input class="inp" id="msgIn" placeholder="${prac?'Type a message…':'Simulation running – switch to Practice Mode to take part'}" ${prac?'':'disabled'} aria-label="Message"><button type="button" class="btn" onclick="voiceIn()" aria-label="Voice input">🎙</button><button class="btn navy" ${prac?'':'disabled'}>➤</button></form></div>
+ <div><div class="card"><div class="row sb"><h3>Negotiation Status</h3><span id="stBadge" class="pill pb">In progress</span></div><div id="stat"></div></div>
+ <div class="card" style="margin-top:12px"><h3>📈 Concession Tracker</h3><div id="trk"></div><div class="sm"><span style="color:${E_COL}">● Employer</span> &nbsp;<span style="color:${C_COL}">● Candidate</span></div></div>
+ <div class="card" style="margin-top:12px"><h3>🏆 Agent Performance</h3><div id="perf"></div></div></div></div>`;
+ vUpd();upd();
+ $('#msgForm').onsubmit=e=>{e.preventDefault();userSend()};
+ if(prac){addMsg(SC[0]);}else{timer=setInterval(simStep,2300)}}
+function addMsg(m){live.push(m);upd()}
+function simStep(){if(paused||done)return;if(pStep<SC.length){addMsg(SC[pStep++]);if(pStep==SC.length)finish()}}
+function userSend(){if(done)return;const v=$('#msgIn').value.trim();if(!v)return toast('Type a message first');$('#msgIn').value='';
+ const n=live.filter(m=>m.who==1).length+1,rd=Math.min(n,3);
+ addMsg({r:rd,t:new Date().toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'}),who:1,txt:v,tag:/\d{2,3}[,k]?\d*/.test(v)?'Ask':''});
+ if(n>=3){setTimeout(()=>{addMsg({r:3,t:'',who:0,txt:REPLY[2],tag:'Offer: $95,000'});finish()},900);return}
+ const a=SC[(n)*2];setTimeout(()=>{if(!done)addMsg({r:n+1,t:new Date().toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'}),who:0,txt:a.txt,tag:a.tag});speak(a.txt)},900)}
+function finish(){done=true;stopSim();upd();speak('Agreement reached at ninety five thousand dollars.')}
+function endNeg(){done=true;stopSim();upd();modal('Negotiation ended','<p>View the report for this session?</p>','<button class="btn pri" onclick="closeModal();showScreen(\'report-overview\')">View Report</button> ')}
+function togglePause(){paused=!paused;$('#pBtn').textContent=paused?'▶ Resume':'❚❚ Pause';if(S.mode=='sim'&&!paused&&!timer&&!done)timer=setInterval(simStep,2300)}
+function aTab(t){$('#tC').classList.toggle('on',!t);$('#tT').classList.toggle('on',!!t);$('#chat').classList.toggle('hide',!!t);$('#trans').classList.toggle('hide',!t)}
+function upd(){if(cur!='negotiation-arena')return;const A=S.agents,last=live.filter(m=>m.who==0).slice(-1)[0],lc=live.filter(m=>m.who==1).slice(-1)[0],rd=live.length?live[live.length-1].r:1;
+ $('#chat').innerHTML=live.map(m=>`<div class="msg ${m.who?'c':''}"><span class="av ${m.who?'o':''}">${m.who?'🟠':'🤖'}</span><div><div class="sm b">${A[m.who].n} – ${A[m.who].tag} <span class="mu" style="font-weight:400">${m.t}</span></div><div class="bub">${m.txt}${m.tag?`<span class="tag">${m.tag}</span>`:''}</div></div></div>`).join('');
+ $('#trans').textContent=live.map(m=>`[${m.t}] R${m.r} ${A[m.who].n}: ${m.txt}`).join('\n\n')||'No messages yet.';
+ $('#chat').scrollTop=1e6;$('#rBadge').textContent=`Round ${rd} / ${S.maxR}`;
+ const fin=done&&live.length>=6||done&&S.mode=='prac'&&live.length>=6;$('#agreeBox').innerHTML=fin?'<div class="agree">✓ Agreement Reached! Both agents have accepted the terms. <a onclick="showScreen(\'report-overview\')">View report →</a></div>':'';
+ const eo=last&&/\d/.test(last.tag)?+last.tag.replace(/\D/g,''):90000,conc=eo-90000;
+ $('#stBadge').textContent=fin?'Agreement Reached':done?'Ended':paused?'Paused':'In progress';$('#stBadge').className='pill '+(fin?'pg':'pb');
+ $('#stat').innerHTML=[['Initial Offer (Employer)','$90,000'],['Current / Final Offer',money(eo)],['Total Concession',`${money(conc)}`],['Rounds Completed',`${live.length?rd:0} / ${S.maxR}`],['Outcome',fin?'Agreement':'Pending']].map(k=>`<div class="kv"><span>${k[0]}</span><b>${k[1]}</b></div>`).join('');
+ const e=R.slice(0,rd).map(x=>x.e),c=R.slice(0,rd).map(x=>x.c);
+ $('#trk').innerHTML=lineChart([{pts:c,col:C_COL,name:'Candidate'},{pts:e,col:E_COL,name:'Employer'}].map(s=>({...s,pts:s.pts.length<2?[s.pts[0],s.pts[0]]:s.pts})),['R1','R2','R3'].slice(0,Math.max(rd,2)),85000,105000,280,170,1);
+ $('#perf').innerHTML=bar('Employer (Goal Achievement)',fin?100:Math.round(100-conc/500),'')+bar('Candidate (Goal Achievement)',fin?95:100-Math.round((100000-(lc?+(lc.tag.replace(/\D/g,'')||100000):100000))/500),'')}
+/* voice: browser speech APIs, with graceful fallback */
+function vUpd(){const b=$('#vBtn');if(b){b.textContent=S.voice?'🎙 Voice: On':'🎙 Voice: Off';b.style.color=S.voice?'#0f6b3a':''}}
+function speak(t){if(!S.voice)return;if(!('speechSynthesis' in window))return toast('Speech output not supported in this browser');speechSynthesis.cancel();speechSynthesis.speak(new SpeechSynthesisUtterance(t))}
+function voiceIn(){const SR=window.SpeechRecognition||window.webkitSpeechRecognition;if(!SR)return toast('Voice input is not supported in this browser (try Chrome or Edge)');
+ if(S.mode!='prac')return toast('Voice input works in Practice Mode');const r=new SR();r.lang='en-US';r.onresult=e=>{$('#msgIn').value=e.results[0][0].transcript};r.onerror=()=>toast('Could not capture audio');r.start();toast('Listening…')}
+
+/* ===== G. SCREENS 6-9: REPORT ===== */
+const RTABS=[['overview','▦ Overview'],['analysis','📊 Analysis'],['transcript','📄 Transcript'],['recommendations','💡 Recommendations']];
+const SUBT={overview:'Comprehensive analysis, performance insights, and actionable recommendations.',analysis:'In-depth analysis of the negotiation process, strategies, and outcomes.',transcript:'Complete conversation transcript with key events, offers, and negotiation dynamics.',recommendations:'AI-generated recommendations to improve negotiation performance and outcomes.'};
+function rHead(t){return `<div class="row sb wrap"><div class="row"><button class="btn noprint" onclick="showScreen('negotiation-arena')">← Back to Arena</button><div><h2>📄 Negotiation Report</h2><span class="mu sm">${SUBT[t]}</span></div></div>
+ <div class="row noprint"><button class="btn" onclick="print()">⤓ Download PDF</button><button class="btn" onclick="share()">⤴ Share</button><button class="btn pri" onclick="showScreen('mode-selection')">⟳ Run Again</button></div></div>
+ <div class="tabs">${RTABS.map(x=>`<a class="${x[0]==t?'on':''}" onclick="showScreen('report-${x[0]}')">${x[1]}</a>`).join('')}</div>`}
+function share(){const u=location.href.split('#')[0];navigator.clipboard?.writeText(u).then(()=>toast('Link copied'),()=>toast('Copy failed'))||toast('Sharing is not available here')}
+const banner=(t)=>`<div class="banner"><div class="row"><span style="font-size:34px">🏅</span><div><h3 style="color:#0f6b3a;font-size:20px">Agreement Reached</h3><span class="sm mu">The agents successfully reached a mutually beneficial agreement.</span></div></div>${[['Final Agreement','$95,000'],['Rounds','3 / 10'],['Total Concession','$5,000 (5.3%)'],['Goal Satisfaction','97%'],['Negotiation Score','A (92/100)']].map(m=>`<div class="m"><small>${m[0]}</small><b>${m[1]}</b></div>`).join('')}</div>`;
+const LEG=`<div class="sm"><span style="color:${E_COL}">● Employer Offer</span> &nbsp;<span style="color:${C_COL}">● Candidate Offer</span></div>`;
+const OFFER=()=>lineChart([{pts:R.map(x=>x.c),col:C_COL,name:'Candidate'},{pts:R.map(x=>x.e),col:E_COL,name:'Employer'}],['R1','R2','R3'],85000,105000,380,190,1);
+const DON=()=>`<div class="row wrap">${donut([{v:50,c:E_COL,n:'Employer'},{v:50,c:C_COL,n:'Candidate'}],'$5,000','Total Concession')}<div class="sm"><p style="color:${E_COL}">■ Employer<br><b>$2,500 (2.8%)</b></p><p style="color:${C_COL};margin-top:8px">■ Candidate<br><b>$2,500 (2.5%)</b></p></div></div>`;
+const GOALS=`<div class="card" style="padding:8px;background:var(--lb);margin-bottom:8px"><b>Employer</b> (Hire ≤ $90,000)<br>${bar('',100)}</div><div class="card" style="padding:8px;background:var(--lo)"><b>Candidate</b> (Salary ≥ $100,000)<br>${bar('',95)}</div>`;
+function rReport(t){const el=$('#report-'+t);let h=rHead(t)+banner(t);
+ if(t=='overview')h+=`<div class="g3">
+ <div class="card"><h3>ⓘ Session Details</h3>${[['Scenario','Job Offer Negotiation'],['Mode','Simulation (AI vs AI)'],['Language',S.lang],['Voice Mode',S.voice?'Enabled':'Disabled'],['Difficulty',S.diff]].map(k=>`<div class="kv"><span class="mu">${k[0]}</span><b>${k[1]}</b></div>`).join('')}</div>
+ <div class="card"><h3>📄 Final Agreement (Terms)</h3><div class="row"><div class="card pg" style="text-align:center;border-radius:10px"><span class="sm">Agreed Salary</span><br><b style="font-size:22px">$95,000</b></div><div class="sm">✓ Performance bonus (up to 10%)<br>✓ Health insurance (fully covered)<br>✓ 20 days of paid leave</div></div></div>
+ <div class="card"><h3>🏆 Agent Performance</h3><div class="row" style="justify-content:space-around;text-align:center"><div>${ring(100,E_COL)}<br><b>Employer</b><br><span class="pill pg">Goal Achieved</span></div><div>${ring(95,'#7c5cd6')}<br><b>Candidate</b><br><span class="pill pg">Goal Achieved</span></div></div></div></div>
+ <div class="g3" style="margin-top:12px"><div class="card"><h3>📈 Offer Progression</h3>${LEG}${OFFER()}</div><div class="card"><h3>⚖ Concession Distribution</h3>${DON()}</div><div class="card"><h3>🎯 Goal Achievement Breakdown</h3>${bar('Employer (Hire ≤ $90,000)',100)}${bar('Candidate (Salary ≥ $100,000)',95)}</div></div>
+ <div class="g2" style="margin-top:12px"><div class="card" style="background:#eef5ff"><h3>🎯 Key Takeaways</h3>${KT().join('')}</div><div class="card" style="background:#f0faf4"><h3>🏅 Overall Assessment</h3><div class="row wrap"><div>${donut([{v:92,c:'#16a34a'},{v:8,c:'#e5ebf3'}],'A','92 / 100',120)}</div><div style="flex:1;min-width:180px">${bar('Strategy & Planning',95)}${bar('Communication',90)}${bar('Flexibility & Concession',92)}${bar('Outcome Quality',93)}</div></div></div></div>`;
+ if(t=='analysis')h+=`<div class="g2"><div class="card"><h3>📋 Round-by-Round Analysis</h3><div class="tblw"><table><tr><th>Round</th><th>Employer Offer</th><th>Candidate Ask</th><th>Gap</th><th>Key Event</th></tr>${R.map(x=>`<tr><td>${x.r}</td><td><span class="pill pb">${money(x.e)}</span></td><td><span class="pill po">${money(x.c)}</span></td><td>${money(x.c-x.e)}</td><td>${x.r==3?'<span class="pill pg">✓ ':'<span>'}${x.k}</span></td></tr>`).join('')}</table></div></div>
+ <div class="card"><h3>📈 Offer Progression</h3>${LEG}${OFFER()}</div></div>
+ <div class="g3" style="margin-top:12px"><div class="card"><h3>⚖ Concession Analysis</h3>${DON()}</div><div class="card"><h3>⏱ Concession per Round</h3>${bars([[0,0],[2500,2500],[0,0]],['R1','R2','R3'],[E_COL,C_COL])}<div class="sm">■ Employer ■ Candidate</div></div><div class="card"><h3>🎯 Goal Achievement</h3>${GOALS}</div></div>
+ <div class="g2" style="margin-top:12px;grid-template-columns:1.3fr 1fr"><div class="card"><h3>♞ Strategy & Behavior Analysis</h3><div class="tblw"><table><tr><th>Dimension</th><th>Employer</th><th>Candidate</th><th>Insight</th></tr>
+ ${[['Opening Strategy','Anchoring (Low)','Anchoring (High)','Candidate set a higher anchor, creating room for concession.'],['Concession Pattern','Moderate','Moderate','Both conceded in Round 2 (balanced).'],['Communication','Collaborative','Assertive','Constructive and professional throughout.'],['Deal Orientation','Solution-focused','Value-driven','Both showed willingness to find common ground.']].map(r=>`<tr><td><b>${r[0]}</b></td><td><span class="pill pb">${r[1]}</span></td><td><span class="pill po">${r[2]}</span></td><td class="sm">${r[3]}</td></tr>`).join('')}</table></div></div>
+ <div class="card"><h3>📄 Round Insights</h3><div class="tl"><div><b>R1 Positioning & Anchoring</b><p class="sm">The employer opened at $90,000 while the candidate asked for $100,000, setting a $10,000 range.</p></div><div><b>R2 Reciprocal Concessions</b><p class="sm">Both sides made equal concessions of $2,500, reducing the gap to $5,000.</p></div><div class="card pg"><b>R3 Agreement & Closure</b><p class="sm">Concluded at $95,000 with bonus, insurance, and leave included.</p></div></div></div></div>`;
+ if(t=='transcript')h+=`<div style="display:grid;grid-template-columns:260px minmax(0,1fr) 280px;gap:12px" class="arena">
+ <div><div class="card"><h3>👥 Participants</h3>${S.agents.slice(0,2).map((a,i)=>`<div class="card sm" style="background:${i?'#fff3e8':'#eef5ff'};margin-bottom:8px"><b>${a.n} – ${a.tag}</b><br>Role: ${a.role}<br>Goal: ${a.goal}<br>Personality: ${a.pers}</div>`).join('')}</div>
+ <div class="card noprint" style="margin-top:12px"><h3>📄 Transcript Tools</h3><input class="inp" id="tSearch" placeholder="Search in transcript…" oninput="rTrans()"><p class="row sb" style="margin-top:8px">Show key events only ${sw('tKey',0,'rTrans()')}</p><p class="row sb">Display offers & numbers ${sw('tOff',1,'rTrans()')}</p><p class="row sb">Highlight strategies ${sw('tStr',1,'rTrans()')}</p><button class="btn" style="width:100%;margin-top:6px" onclick="exportTxt()">⤓ Export Transcript</button></div></div>
+ <div class="card"><div class="row sb"><h3>💬 Conversation Transcript</h3>${sel('tRnd',['All Rounds','Round 1','Round 2','Round 3'],'All Rounds','rTrans()')}</div><div id="tBody"></div></div>
+ <div><div class="card"><h3>🗓 Negotiation Timeline</h3><div class="tl"><div><b>R1</b> 10:00–10:03<br><span class="sm">Opening positions · $90,000 | $100,000</span></div><div><b>R2</b> 10:04–10:06<br><span class="sm">Concessions · $92,500 | $97,500</span></div><div class="card pg"><b>R3</b> 10:08–10:09<br><span class="sm">Agreement · $95,000</span></div></div></div>
+ <div class="card" style="margin-top:12px"><h3>⚑ Key Events Highlight</h3>${[['✓ Agreement Reached','Both parties accepted $95,000 with benefits.'],['⚖ Major Concession','Both agents made equal concessions of $2,500.'],['🎯 Value Creation','Performance bonus (up to 10%) added.'],['👥 Collaborative Behavior','Constructive and solution-oriented discussion.']].map(k=>`<p style="margin:6px 0"><b class="sm" style="color:#0f6b3a">${k[0]}</b><br><span class="sm">${k[1]}</span></p>`).join('')}</div>
+ <div class="card" style="margin-top:12px"><h3>📄 Transcript Summary</h3><p class="sm">A concise, three-round negotiation where both agents showed flexibility, made balanced concessions, and reached a mutually beneficial agreement at $95,000 with additional benefits.</p></div></div></div>`;
+ if(t=='recommendations')h+=recoHtml();
+ el.innerHTML=h;if(t=='transcript')rTrans()}
+const KT=()=>['The negotiation concluded with a fair compromise at $95,000.','Both agents demonstrated a collaborative and flexible approach.','Concessions were balanced, with each party reducing their position by $2,500.','Discussing additional benefits (bonus, insurance, leave) helped create value.'].map(s=>`<p class="sm" style="margin:5px 0"><span style="color:var(--green)">✓</span> ${s}</p>`);
+/* transcript rendering with working search + filters */
+function rTrans(){const q=($('#tSearch').value||'').toLowerCase(),key=$('#tKey').classList.contains('on'),off=$('#tOff').classList.contains('on'),str=$('#tStr').classList.contains('on'),rr=$('#tRnd').value;let h='';
+ [1,2,3].forEach(r=>{if(rr!='All Rounds'&&rr!='Round '+r)return;const ms=SC.filter(m=>m.r==r&&(!q||(m.txt+S.agents[m.who].n).toLowerCase().includes(q)));
+  if(!key&&!ms.length)return;h+=`<div class="rnd"><span>Round ${r} – ${RT[r]}</span><span>R${r}</span></div>`;
+  if(!key)ms.forEach(m=>{let t=m.txt;if(q)t=t.replace(new RegExp(q.replace(/[.*+?^${}()|[\]\\]/g,'\\$&'),'gi'),x=>`<mark class="hl">${x}</mark>`);
+   h+=`<div class="row" style="align-items:flex-start;margin:10px 0"><span class="sm mu" style="width:60px">${m.t}</span><span class="av ${m.who?'o':''}">${m.who?'🟠':'🤖'}</span><div style="flex:1"><b class="sm">${S.agents[m.who].n} – ${S.agents[m.who].tag}</b><br>${t}</div>${off?`<span class="pill ${m.who?(m.tag=='Accepted'?'pg':'po'):'pb'}">${m.tag=='Accepted'?'✓ Accepted':m.tag}</span>`:''}</div>`});
+  if(!q||key)h+=`<div class="ev ${str&&EV[r][1]?'s':''}">⚑ ${EV[r][0]}</div>`});
+ $('#tBody').innerHTML=h||'<p class="mu">No transcript lines match. Clear the search or filters.</p>'}
+function exportTxt(){const t=`NEGOTIATION TRANSCRIPT – Job Offer Negotiation\n\n`+SC.map(m=>`[${m.t}] Round ${m.r} | ${S.agents[m.who].n} (${S.agents[m.who].tag}) | ${m.tag}\n${m.txt}`).join('\n\n')+'\n\nOutcome: Agreement at $95,000 with performance bonus, health insurance and paid leave.\n';
+ const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([t],{type:'text/plain'}));a.download='negotiation-transcript.txt';a.click();toast('Transcript exported')}
+/* recommendations (all gains are estimates) */
+const RECS=[['📈','Strengthen Initial Justification','High','pr','The candidate could have provided stronger, data-backed evidence (market salary range, experience impact, past achievements) to justify the initial $100,000 request.','#eef5ff'],['🤝','Introduce Value Trade-offs Earlier','Medium','po','Both parties could have discussed non-salary benefits (performance bonus, additional leave, flexible work) in Round 1 or 2 to reach agreement faster.','#fff3e8'],['🎯','Use a Structured Concession Strategy','Medium','pp','A more planned and transparent concession pattern (gradual reductions) can build trust and maintain negotiation leverage.','#f3eeff']];
+function recoHtml(){return `<div class="banner"><div class="row"><span style="font-size:30px">🏅</span><div><h3 style="color:#0f6b3a;font-size:19px">Recommendation Overview</h3><span class="sm mu">Personalised, actionable insights for both agents.</span></div></div>${[['3','Key Recommendations'],['2','Alternative Strategies'],['+8%*','Potential Outcome Gain (est.)'],['A (92/100)','Negotiation Score']].map(m=>`<div class="m"><b>${m[0]}</b><small>${m[1]}</small></div>`).join('')}</div>
+ <div style="display:grid;grid-template-columns:260px minmax(0,1fr) 300px;gap:12px" class="arena"><div>
+ <div class="card"><h3>📄 Negotiation Result</h3><p class="agree" style="text-align:center">✓ Agreement Reached</p>${[['Final Agreement','$95,000'],['Rounds','3 / 10'],['Total Concession','$5,000 (5.3%)'],['Goal Satisfaction','97%']].map(k=>`<div class="kv"><span>${k[0]}</span><b>${k[1]}</b></div>`).join('')}</div>
+ <div class="card" style="margin-top:12px"><h3>Performance at a Glance</h3><div class="row" style="justify-content:space-around;text-align:center"><div>${ring(100,E_COL)}<br><b>Employer</b></div><div>${ring(95,'#7c5cd6')}<br><b>Candidate</b></div></div></div>
+ <div class="card" style="margin-top:12px"><h3>🎯 Key Takeaways</h3>${KT().slice(0,3).join('')}</div></div>
+ <div><div class="card"><h3>☆ Top Recommendations</h3>${RECS.map((r,i)=>`<div class="rec" style="background:${r[5]}" onclick="this.querySelector('.dt').classList.toggle('hide')"><div class="row sb"><b>${i+1}. ${r[0]} ${r[1]}</b><span class="pill ${r[3]}">Impact: ${r[2]}</span></div><p class="sm dt ${i?'hide':''}" style="margin-top:6px">${r[4]}</p></div>`).join('')}<p class="sm mu">Click a recommendation to expand it.</p></div>
+ <div class="card" style="margin-top:12px"><h3>↗ Alternative Strategies <span class="sm mu">(estimates)</span></h3><div class="g2"><div class="card pg"><b>A · Value-Package Strategy</b><p class="sm">Bundle salary with additional benefits (bonus, flexible work) to increase overall value while keeping cost manageable.</p><span class="pill pg">Expected ~ $98,000</span> <span class="pill pg">Est. gain +3%</span></div><div class="card pb"><b>B · Anchoring with Market Data</b><p class="sm">Start with a well-supported anchor (e.g., $102,000 with market range evidence) and plan concessions.</p><span class="pill pb">Expected ~ $98,500</span> <span class="pill pb">Est. gain +4%</span></div></div></div>
+ <div class="card" style="margin-top:12px"><h3>👥 Agent-Specific Recommendations</h3><div class="g2"><p class="sm"><b>Employer:</b> Offer non-monetary benefits earlier and publish a clear concession ladder.</p><p class="sm"><b>Candidate:</b> Bring market data and quantified achievements to support the opening ask.</p></div></div></div>
+ <div><div class="card"><h3>Potential Outcome Improvement</h3><p class="sm mu">Estimated, not guaranteed.</p>${bars([[95000],[98000]],['Actual (3 rounds)','Potential (est.)'],['#7fb2f5','#22a55a'],190)}<p class="pill pg" style="margin-top:4px">+8% (estimate)</p></div>
+ <div class="card" style="margin-top:12px"><h3>What Could Have Been Better?</h3>${['The candidate’s initial ask was not strongly supported with market or performance evidence.','The employer could have offered non-monetary benefits earlier.','Discussing underlying priorities could have uncovered win-win options sooner.'].map(s=>`<p class="sm" style="margin:6px 0"><span style="color:var(--red)">✗</span> ${s}</p>`).join('')}</div>
+ <div class="card" style="margin-top:12px"><h3>⚑ Next Practice Plan</h3>${['Apply these recommendations in your next practice.','Experiment with the alternative strategies.','Compare results across multiple negotiation runs.'].map((s,i)=>`<label class="sm" style="display:block;margin:6px 0"><input type="checkbox" ${S['plan'+i]?'checked':''} onchange="S.plan${i}=this.checked;save()"> ${s}</label>`).join('')}</div></div></div>`}
+
+/* ===== H. SCREEN 10: HISTORY ===== */
+const HS={q:'',sc:'All Scenarios',md:'All Modes',oc:'All Outcomes',df:'All Levels',dr:'Last 30 Days',pg:1,pp:8};
+function rHistory(){$('#history').innerHTML=`<div class="row sb wrap"><div><h2>🕘 Negotiation History</h2><span class="mu">View, search, filter, and manage your past negotiation sessions.</span></div><button class="btn pri" onclick="newNeg()">+ New Negotiation</button></div>
+ <div class="g5" style="margin:14px 0">${[['Total Sessions',SUM.total,'#eef5ff'],['Agreements',SUM.ag+' (75%)','#e3f6ea'],['Breakdowns',SUM.br+' (25%)','#fde8e8'],['Avg. Negotiation Score',SUM.avg+' / 100','#f1ecff'],['Best Score',SUM.best+' / 100','#e6f0ff']].map(c=>`<div class="card" style="background:${c[2]}"><b>${c[0]}</b><br><span style="font-size:22px;font-weight:700">${c[1]}</span></div>`).join('')}</div>
+ <div class="row wrap" style="margin-bottom:12px"><input class="inp" id="hQ" style="flex:1;min-width:200px" placeholder="🔍 Search by scenario, mode, or keywords…" value="${HS.q}" oninput="HS.q=this.value;HS.pg=1;hRows()">
+ ${[['hSc',['All Scenarios',...SCS],'sc'],['hMd',['All Modes','Simulation','Practice'],'md'],['hOc',['All Outcomes','Agreement','Breakdown'],'oc'],['hDf',['All Levels','Easy','Medium','Hard'],'df'],['hDr',['Last 7 Days','Last 30 Days','All Time'],'dr']].map(s=>sel(s[0],s[1],HS[s[2]],`HS.${s[2]}=this.value;HS.pg=1;hRows()`)).join('')}<button class="btn" onclick="Object.assign(HS,{q:'',sc:'All Scenarios',md:'All Modes',oc:'All Outcomes',df:'All Levels',dr:'Last 30 Days',pg:1});rHistory()">⟳ Reset</button></div>
+ <div class="card tblw" style="padding:6px"><table id="hT"></table></div><div class="row sb wrap" style="margin-top:12px"><span id="hInfo"></span><span class="row" id="hPg"></span><span>Rows per page: ${sel('hPP',[8,16,24],HS.pp,'HS.pp=+this.value;HS.pg=1;hRows()')}</span></div>`;hRows()}
+function hFilter(){const q=HS.q.toLowerCase(),lim=HS.dr=='Last 7 Days'?20:HS.dr=='Last 30 Days'?1:0;
+ return HIST.filter(h=>(!q||(h.id+SCS[h.sc]+h.mode+(h.ok?'agreement':'breakdown')+h.fin).toLowerCase().includes(q))&&(HS.sc=='All Scenarios'||SCS[h.sc]==HS.sc)&&(HS.md=='All Modes'||h.mode==HS.md)&&(HS.oc=='All Outcomes'||(h.ok?'Agreement':'Breakdown')==HS.oc)&&(HS.df=='All Levels'||['Easy','Medium','Hard'][h.rd%3]==HS.df)&&h.d>=lim)}
+function hRows(){const f=hFilter(),pages=Math.max(1,Math.ceil(f.length/HS.pp));HS.pg=Math.min(HS.pg,pages);const s=(HS.pg-1)*HS.pp,v=f.slice(s,s+HS.pp);
+ $('#hT').innerHTML=`<tr><th>Session ID</th><th>Scenario</th><th>Mode</th><th>Outcome</th><th>Final Agreement</th><th>Rounds</th><th>Concession</th><th>Goal Sat.</th><th>Score</th><th>Date & Time</th><th>Actions</th></tr>`+(v.length?v.map(h=>`<tr><td><a onclick="showScreen('report-overview')">${h.id}</a></td><td>${['🚚','💼','📊'][h.sc]} ${SCS[h.sc]}</td><td><span class="pill ${h.mode=='Practice'?'pb':'pp'}">${h.mode}</span></td><td><span class="pill ${h.ok?'pg':'pr'}">${h.ok?'✓ Agreement':'✗ Breakdown'}</span></td><td>${h.fin}</td><td>${h.rd}</td><td>${h.con}</td><td>${h.gs}%</td><td><span class="pill ${h.score>=80?'pg':'pr'}">${h.score}</span></td><td>Jan ${h.d}, 2025, ${h.tm}</td><td style="white-space:nowrap"><button class="btn" title="View Report" onclick="showScreen('report-overview')">👁</button> <button class="btn" title="View Analysis" onclick="showScreen('report-analysis')">📈</button> <button class="btn" title="More" onclick="more('${h.id}')">⋯</button></td></tr>`).join(''):'<tr><td colspan="11" class="mu" style="padding:20px;text-align:center">No sessions match these filters. Try Reset.</td></tr>');
+ $('#hInfo').textContent=f.length?`Showing ${s+1}–${s+v.length} of ${f.length} sessions`:'Showing 0 sessions';
+ $('#hPg').innerHTML=`<button class="btn" onclick="hGo(${HS.pg-1})">‹</button>`+Array.from({length:pages},(_,i)=>`<button class="btn ${i+1==HS.pg?'pri':''}" onclick="hGo(${i+1})">${i+1}</button>`).join('')+`<button class="btn" onclick="hGo(${HS.pg+1})">›</button>`}
+function hGo(p){const n=Math.max(1,Math.ceil(hFilter().length/HS.pp));HS.pg=Math.min(Math.max(1,p),n);hRows()}
+function more(id){modal('Session '+id,'<p>Choose an action for this session.</p>',`<button class="btn" onclick="exportTxt();closeModal()">Export transcript</button> <button class="btn red" onclick="HIST.splice(HIST.findIndex(h=>h.id=='${id}'),1);closeModal();hRows();toast('Session removed (demo)')">Delete</button> `)}
+
+/* ===== I. SCREEN 11: PROFILE ===== */
+const TREND=[76,81,81,85,88,87,90,92];
+function rProfile(t){const U=S.user,P=S.prefs;let h=`<div class="row sb"><div><h2>👤 My Profile</h2><span class="mu">Manage your account, view your negotiation performance, and customize your experience.</span></div><button class="btn" onclick="rProfile('settings')">✎ Edit Profile</button></div>
+ <div class="tabs">${[['overview','▦ Overview'],['settings','⚙ Settings'],['preferences','☰ Preferences'],['security','🛡 Security']].map(x=>`<a class="${x[0]==t?'on':''}" onclick="rProfile('${x[0]}')">${x[1]}</a>`).join('')}</div>`;
+ if(t=='overview')h+=`<div class="card row wrap"><div class="av" style="width:90px;height:90px;font-size:44px;font-weight:700;color:var(--teal);background:var(--lg)">${U.name[0]}</div><div><h2>${U.name}</h2><p class="mu">${U.email}</p><p><span class="pill pp">♛ Pro User</span></p><p class="sm mu">Member since Jan 10, 2025</p></div>
+ <div class="g5" style="flex:1;min-width:300px">${[['Total Sessions',24,'#eef5ff'],['Agreements (75%)',18,'#e3f6ea'],['Breakdowns (25%)',6,'#fde8e8'],['Best Score','96 / 100','#f1ecff'],['Avg. Score','87 / 100','#e6f0ff']].map(c=>`<div class="card" style="background:${c[2]};text-align:center;padding:8px"><b style="font-size:17px">${c[1]}</b><br><span class="sm">${c[0]}</span></div>`).join('')}</div></div>
+ <div class="g2" style="margin-top:12px"><div class="card"><h3>🎯 Negotiation Performance</h3><div class="row wrap">${donut([{v:87,c:'#16a34a'},{v:13,c:'#e5ebf3'}],'87 / 100','Overall Score',140)}<div style="flex:1;min-width:180px">${bar('Goal Achievement',94)}${bar('Strategy Effectiveness',88)}${bar('Communication',86)}${bar('Flexibility & Concession',82)}</div></div></div>
+ <div class="card"><h3>📈 Performance Trend</h3>${lineChart([{pts:TREND,col:'#16a34a',name:'Score'}],['W1','W2','W3','W4','W5','W6','W7','W8'],70,100,400,190)}<span class="pill pg">↑ +16 pts (from 76 to 92)</span></div></div>
+ <div class="g2" style="margin-top:12px;grid-template-columns:1fr 1.5fr"><div class="card"><h3>Negotiation Activity</h3><div class="row wrap">${donut([{v:41.7,c:'#2563eb',n:'Job Offer'},{v:29.2,c:'#f59e0b',n:'Vendor'},{v:20.8,c:'#7c5cd6',n:'Budget'},{v:8.3,c:'#cbd5e3',n:'Others'}],'24','Sessions',130)}<div class="sm">■ Job Offer 10 (41.7%)<br>■ Vendor Pricing 7 (29.2%)<br>■ Project Budget 5 (20.8%)<br>■ Others 2 (8.3%)</div></div></div>
+ <div class="card"><h3>🏅 Achievements & Badges</h3><div class="g5">${[['🏆','Negotiation Pro','Complete 20 sessions','#fff3e0'],['🎯','Deal Maker','Reach 75% agreement rate','#f1ecff'],['📈','High Performer','Score 90+ in a negotiation','#e6f0ff'],['👥','Strategist','Use 3+ different strategies','#e3f6ea'],['⭐','Consistent','Complete 5 sessions in a row','#fde8f0']].map(b=>`<div class="card sm" style="background:${b[3]};text-align:center;padding:8px;cursor:pointer" onclick="toast('${b[1]}: ${b[2]}')"><span style="font-size:24px">${b[0]}</span><br><b>${b[1]}</b><br>${b[2]}</div>`).join('')}</div></div></div>
+ <div class="g2" style="margin-top:12px"><div class="card"><div class="row sb"><h3>🕘 Recent Sessions</h3><a onclick="showScreen('history')">View All →</a></div><div class="tblw"><table><tr><th>ID</th><th>Scenario</th><th>Mode</th><th>Outcome</th><th>Score</th><th>Date</th></tr>${HIST.slice(0,3).map(h=>`<tr><td><a onclick="showScreen('report-overview')">${h.id}</a></td><td>${SCS[h.sc]}</td><td>${h.mode}</td><td><span class="pill ${h.ok?'pg':'pr'}">${h.ok?'Agreement':'Breakdown'}</span></td><td>${h.score}</td><td>Jan ${h.d}, 2025</td></tr>`).join('')}</table></div></div>
+ <div class="card"><h3>⚑ My Goals</h3>${[['Achieve an average negotiation score of 90 or higher.',87,90],['Maintain an agreement rate of ≥ 80%.',75,80],['Complete 30 negotiation sessions.',24,30]].map(g=>`<div class="row" style="margin:10px 0"><span class="sm" style="flex:1.4">${g[1]>=g[2]?'☑':'☐'} ${g[0]}</span><div class="bar" style="flex:1"><i style="width:${g[1]/g[2]*100}%"></i></div><b class="sm">${g[1]} / ${g[2]}</b></div>`).join('')}</div></div>`;
+ if(t=='settings')h+=`<form class="card" style="max-width:520px" onsubmit="event.preventDefault();S.user={name:$('#sN').value.trim()||U.name,email:$('#sE').value.trim()||U.email,phone:$('#sP').value,bio:$('#sB').value};save();$('#topName').textContent=S.user.name.split(' ')[0];$('#topAv').textContent=S.user.name[0];toast('Profile saved');rProfile('settings')"><h3>Account Information</h3><label class="f">Full name</label><input class="inp" id="sN" value="${U.name}"><label class="f">Email</label><input class="inp" id="sE" type="email" value="${U.email}"><label class="f">Phone</label><input class="inp" id="sP" value="${U.phone}"><label class="f">Bio</label><textarea class="inp" id="sB" rows="3">${U.bio}</textarea><p style="margin-top:12px"><button class="btn pri">Save changes</button></p></form>`;
+ if(t=='preferences')h+=`<div class="card" style="max-width:520px"><h3>Defaults for new negotiations</h3><label class="f">Language</label>${sel('pL',LANGS,P.lang,"S.prefs.lang=this.value;S.lang=this.value;save();toast('Saved')")}<p style="margin:12px 0">🎙 Voice preference ${sw('pV',P.voice,"S.prefs.voice=S.voice=this.classList.contains('on');save();toast('Saved')")}</p><label class="f">Difficulty</label>${sel('pD',['Easy','Medium','Hard'],P.diff,"S.prefs.diff=S.diff=this.value;save();toast('Saved')")}</div>`;
+ if(t=='security')h+=`<form class="card" style="max-width:520px" onsubmit="event.preventDefault();const a=$('#cp1').value,b=$('#cp2').value,c=$('#cp3').value;$('#cpE').textContent=!a?'Enter your current password.':b.length<8?'New password must be at least 8 characters.':b!=c?'Passwords do not match.':'';if(!$('#cpE').textContent){toast('Password changed (demo)');this.reset()}"><h3>Change password (demo)</h3><label class="f">Current password</label><input class="inp" id="cp1" type="password"><label class="f">New password</label><input class="inp" id="cp2" type="password"><label class="f">Confirm new password</label><input class="inp" id="cp3" type="password"><div class="err" id="cpE"></div><button class="btn pri">Update password</button></form>`;
+ $('#profile').innerHTML=h}
+
+/* ===== J. INIT ===== */
+document.addEventListener('keydown',e=>{if(e.key=='Escape')closeModal()});
+$('#modal').addEventListener('click',e=>{if(e.target.id=='modal')closeModal()});
+$('#topName').textContent=S.user.name.split(' ')[0];$('#topAv').textContent=S.user.name[0];
+showScreen(S.loggedIn?'mode-selection':'login');
+</script></body></html>
